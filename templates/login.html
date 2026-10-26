@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In & Studio Entry — AI Vision Studio{% endblock %}
+
+{% block content %}
+<div class="auth-page-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon-badge">
+                <i class="fa-solid fa-fingerprint"></i>
+            </div>
+            <h1 class="auth-title">Studio Entry & Access</h1>
+            <p class="auth-subtitle">
+                Authenticate to manage live webcam neural feeds, access OpenCV playground, and review persistent SQLite logs.
+            </p>
+        </div>
+
+        <!-- 1-Click Quick Demo Login -->
+        <form method="POST" action="{{ url_for('login') }}" class="demo-login-form">
+            <input type="hidden" name="next" value="{{ next or url_for('index') }}">
+            <button type="submit" name="action" value="demo_login" class="btn btn-demo-login" id="btn-demo-quick-login">
+                <i class="fa-solid fa-bolt"></i>
+                <div style="text-align: left;">
+                    <div style="font-weight: 700; font-size: 0.95rem;">1-Click Quick Demo Entry</div>
+                    <div style="font-size: 0.78rem; opacity: 0.85;">Instant login as Lead Visionist (admin)</div>
+                </div>
+                <i class="fa-solid fa-arrow-right" style="margin-left: auto;"></i>
+            </button>
+        </form>
+
+        <div class="auth-divider">
+            <span>or sign in with your account</span>
+        </div>
+
+        <form method="POST" action="{{ url_for('login') }}" class="auth-form" id="login-form">
+            <input type="hidden" name="next" value="{{ next or url_for('index') }}">
+
+            <div class="form-group">
+                <label for="identifier" class="form-label">
+                    <i class="fa-solid fa-user"></i> Username or Email
+                </label>
+                <div class="input-icon-wrapper">
+                    <input type="text" 
+                           class="form-control" 
+                           id="identifier" 
+                           name="identifier" 
+                           value="{{ identifier or '' }}" 
+                           placeholder="e.g. admin or your.email@example.com" 
+                           required 
+                           autocomplete="username"
+                           autofocus>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">
+                    <i class="fa-solid fa-lock"></i> Password
+                </label>
+                <div class="password-input-group">
+                    <input type="password" 
+                           class="form-control" 
+                           id="password" 
+                           name="password" 
+                           placeholder="••••••••" 
+                           required 
+                           autocomplete="current-password">
+                    <button type="button" class="btn-toggle-pwd" id="toggle-password-btn" aria-label="Toggle password visibility">
+                        <i class="fa-regular fa-eye" id="toggle-pwd-icon"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; font-size: 0.85rem;">
+                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-secondary);">
+                    <input type="checkbox" name="remember" checked style="accent-color: var(--blue-600);"> Remember this workstation
+                </label>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">Demo: admin / admin123</span>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block btn-lg" id="btn-submit-login">
+                <i class="fa-solid fa-right-to-bracket"></i> Sign In to AI Studio
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>New to AI Vision Studio? <a href="{{ url_for('register') }}" class="auth-link">Create an account</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleBtn = document.getElementById('toggle-password-btn');
+    const pwdInput = document.getElementById('password');
+    const icon = document.getElementById('toggle-pwd-icon');
+
+    if (toggleBtn && pwdInput) {
+        toggleBtn.addEventListener('click', () => {
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                pwdInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

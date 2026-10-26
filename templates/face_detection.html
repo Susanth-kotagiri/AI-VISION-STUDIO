@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+
+{% block title %}Face Detection — AI Vision Studio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fa-regular fa-face-smile" style="color: var(--blue-600);"></i>
+            Haar Cascade Face Detection
+        </h1>
+        <p class="page-description">
+            Detect human faces and facial structures in photos using OpenCV's classical Viola-Jones Haar Feature-based Cascade Classifiers.
+        </p>
+    </div>
+</div>
+
+<div class="studio-grid">
+    <!-- Left Controls Panel -->
+    <aside class="controls-panel" id="face-controls-sidebar">
+        <!-- 1. Source Image -->
+        <div class="panel-section">
+            <div class="section-title">
+                <i class="fa-solid fa-upload"></i> Input Image
+            </div>
+
+            <div class="dropzone-container" id="dropzone-face">
+                <i class="fa-solid fa-user-plus dropzone-icon"></i>
+                <div class="dropzone-title">Upload a face photo</div>
+                <div class="dropzone-sub">Single or group portrait (JPG, PNG)</div>
+                <input type="file" id="file-input-face" class="file-input-hidden" accept="image/png, image/jpeg, image/jpg, image/webp">
+            </div>
+
+            {% if samples %}
+            <div class="samples-picker">
+                <div class="samples-label"><i class="fa-solid fa-images"></i> Quick test samples:</div>
+                <div class="samples-pills">
+                    {% for sample in samples %}
+                    <span class="sample-pill" data-sample="{{ sample }}" onclick="selectSample('{{ sample }}', onFaceSamplePicked)">
+                        <i class="fa-regular fa-id-badge"></i> {{ sample }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <form id="face-detection-form">
+            <input type="hidden" id="selected-face-sample" name="sample_name" value="">
+
+            <!-- 2. Cascade Tuning Parameters -->
+            <div class="panel-section">
+                <div class="section-title">
+                    <i class="fa-solid fa-sliders"></i> Detection Sensitivity
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label">
+                        <span>Scale Factor</span>
+                        <span class="form-val-badge" id="val-scale-factor">1.10</span>
+                    </div>
+                    <input type="range" class="range-slider" id="param-scale-factor" name="scale_factor" min="1.05" max="1.4" step="0.05" value="1.10">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+                        How much the image size is reduced at each image scale pass.
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label">
+                        <span>Min Neighbors</span>
+                        <span class="form-val-badge" id="val-min-neighbors">5</span>
+                    </div>
+                    <input type="range" class="range-slider" id="param-min-neighbors" name="min_neighbors" min="2" max="12" step="1" value="5">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+                        Higher values yield fewer detections with much higher confidence.
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label">
+                        <span>Min Face Size</span>
+                        <span class="form-val-badge" id="val-min-size">30 px</span>
+                    </div>
+                    <input type="range" class="range-slider" id="param-min-size" name="min_size" min="20" max="100" step="5" value="30">
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--navy-900);">
+                        <input type="checkbox" id="param-detect-eyes" name="detect_eyes" value="true" checked style="width: 16px; height: 16px; accent-color: var(--blue-600);">
+                        <span>Enable Eye Localization (Haar Eye Cascade)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-primary btn-full" id="btn-run-face-detection">
+                <i class="fa-solid fa-magnifying-glass"></i> Detect Faces
+            </button>
+        </form>
+
+        <!-- Educational Callout -->
+        <div class="edu-callout" style="margin-top: 1.5rem;">
+            <p><strong><i class="fa-solid fa-lightbulb"></i> Computer Vision Concept:</strong></p>
+            <p style="margin-top: 0.35rem; font-size: 0.8rem; line-height: 1.4;">
+                <strong>Face Detection ≠ Face Recognition:</strong> Haar Cascade classifiers detect contrast gradients
+                (e.g., eye regions naturally reflecting less light than cheeks). It determines whether
+                <em>a face</em> is present, without knowing <em>whose identity</em> it belongs to.
+            </p>
+        </div>
+    </aside>
+
+    <!-- Right Viewer Panel -->
+    <main class="viewer-card" id="face-viewer-card">
+        <div class="viewer-header">
+            <h2 class="viewer-title">
+                <i class="fa-solid fa-bullseye"></i>
+                <span id="face-viewer-heading">Detection Results</span>
+            </h2>
+
+            <div class="viewer-actions">
+                <button type="button" class="btn btn-outline btn-sm active" id="btn-mode-split" onclick="switchViewMode('split')">
+                    <i class="fa-solid fa-table-columns"></i> Split View
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-mode-side" onclick="switchViewMode('side')">
+                    <i class="fa-solid fa-border-all"></i> Side-by-Side
+                </button>
+                <a id="btn-download-face-result" href="#" class="btn btn-primary btn-sm" style="display: none;">
+                    <i class="fa-solid fa-download"></i> Download Annotated
+                </a>
+            </div>
+        </div>
+
+        <div class="comparison-wrapper" id="comparison-wrapper">
+            <div class="loading-overlay" id="face-loading-overlay" style="display: none;">
+                <span class="spinner" style="width: 36px; height: 36px;"></span>
+                <p style="font-weight: 700; margin-top: 0.5rem;">Running Haar Cascade MultiScale...</p>
+            </div>
+
+            <div class="viewer-placeholder" id="viewer-placeholder">
+                <i class="fa-regular fa-face-smile"></i>
+                <h3 style="color: #cbd5e1; font-weight: 700; margin-bottom: 0.25rem;">No Face Image Loaded</h3>
+                <p>Upload a photo or select the sample portrait on the left to begin face detection.</p>
+            </div>
+
+            <!-- Split-Slider View -->
+            <div class="split-slider-container" id="split-slider-container" style="display: none;">
+                <img id="img-after-split" src="" alt="Detected Faces">
+                <div class="split-slider-before" id="split-slider-before">
+                    <img id="img-before-split" src="" alt="Original Photo">
+                </div>
+                <div class="split-slider-handle" id="split-slider-handle">
+                    <i class="fa-solid fa-left-right"></i>
+                </div>
+            </div>
+
+            <!-- Side-by-Side View -->
+            <div class="side-by-side-view" id="side-by-side-view" style="display: none;">
+                <div class="image-panel">
+                    <div class="image-panel-label">Original Photo</div>
+                    <img id="img-before-side" src="" alt="Original Photo">
+                </div>
+                <div class="image-panel">
+                    <div class="image-panel-label" style="color: var(--cyan-400);">Detected Bounding Boxes</div>
+                    <img id="img-after-side" src="" alt="Detected Faces">
+                </div>
+            </div>
+        </div>
+
+        <!-- Detection Summary Strip & Cropped Faces -->
+        <div id="face-results-container" style="display: none;">
+            <div class="face-summary-box">
+                <div class="face-summary-icon">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
+                <div>
+                    <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--navy-900);">
+                        <span id="detected-count-badge" style="color: var(--blue-600);">0</span> Faces Detected
+                    </h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem;" id="face-summary-subtext">
+                        Processed in <span id="face-elapsed-time">0</span> ms using Haar Feature cascade classifier.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Cropped Face Thumbnails Strip -->
+            <div style="margin-top: 1.25rem;">
+                <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em;">
+                    Detected Face Avatars:
+                </h4>
+                <div class="face-avatar-strip" id="face-avatars-list">
+                    <!-- Populated via JavaScript -->
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+let currentFaceFile = null;
+let currentFaceSample = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    initSplitSlider();
+
+    updateSliderBadge('param-scale-factor', 'val-scale-factor');
+    updateSliderBadge('param-min-neighbors', 'val-min-neighbors');
+    updateSliderBadge('param-min-size', 'val-min-size', ' px');
+
+    setupDropzone('dropzone-face', 'file-input-face', (file) => {
+        currentFaceFile = file;
+        currentFaceSample = null;
+        document.getElementById('selected-face-sample').value = '';
+        document.querySelectorAll('.sample-pill').forEach(p => p.classList.remove('active'));
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            showFaceImages(e.target.result);
+            runFaceDetection();
+        };
+        reader.readAsDataURL(file);
+    });
+
+    document.getElementById('face-detection-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        runFaceDetection();
+    });
+
+    // Auto-select portrait sample
+    const portraitPill = document.querySelector('[data-sample="portrait_face.jpg"]');
+    if (portraitPill) {
+        portraitPill.click();
+    }
+});
+
+function onFaceSamplePicked(sampleName) {
+    currentFaceSample = sampleName;
+    currentFaceFile = null;
+    document.getElementById('selected-face-sample').value = sampleName;
+    const url = `/static/samples/${sampleName}`;
+    showFaceImages(url);
+    runFaceDetection();
+}
+
+function showFaceImages(url) {
+    document.getElementById('viewer-placeholder').style.display = 'none';
+    document.getElementById('split-slider-container').style.display = 'block';
+    document.getElementById('img-before-split').src = url;
+    document.getElementById('img-after-split').src = url;
+    document.getElementById('img-before-side').src = url;
+    document.getElementById('img-after-side').src = url;
+}
+
+async function runFaceDetection() {
+    if (!currentFaceFile && !currentFaceSample) {
+        alert("Please select or upload an image first.");
+        return;
+    }
+
+    showLoading('face-loading-overlay', true);
+    const form = document.getElementById('face-detection-form');
+    const formData = new FormData(form);
+
+    if (currentFaceFile) {
+        formData.append('image', currentFaceFile);
+    }
+
+    try {
+        const resp = await fetch('/api/detect-faces', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await resp.json();
+        showLoading('face-loading-overlay', false);
+
+        if (data.success) {
+            document.getElementById('img-before-split').src = data.original_url;
+            document.getElementById('img-after-split').src = data.processed_url;
+            document.getElementById('img-before-side').src = data.original_url;
+            document.getElementById('img-after-side').src = data.processed_url;
+
+            const dlBtn = document.getElementById('btn-download-face-result');
+            dlBtn.href = `/download/results/${data.output_filename}`;
+            dlBtn.style.display = 'inline-flex';
+
+            document.getElementById('face-results-container').style.display = 'block';
+            document.getElementById('detected-count-badge').textContent = data.face_count;
+            document.getElementById('face-elapsed-time').textContent = data.elapsed_ms;
+
+            // Render face avatar cards
+            const avatarList = document.getElementById('face-avatars-list');
+            avatarList.innerHTML = '';
+
+            if (data.faces && data.faces.length > 0) {
+                data.faces.forEach(f => {
+                    const card = document.createElement('div');
+                    card.className = 'face-avatar-card';
+                    const imgSrc = f.crop_file ? `/static/results/${f.crop_file}` : data.processed_url;
+                    card.innerHTML = `
+                        <img src="${imgSrc}" class="face-avatar-img" alt="Face #${f.id}">
+                        <span class="face-avatar-label">Face #${f.id}</span>
+                        <span style="font-size:0.7rem; color:#64748b;">${f.width}×${f.height}px</span>
+                        ${f.eyes_detected > 0 ? `<span class="badge badge-emerald" style="font-size:0.65rem;">${f.eyes_detected} Eyes</span>` : ''}
+                    `;
+                    avatarList.appendChild(card);
+                });
+            } else {
+                avatarList.innerHTML = '<span style="color:#94a3b8; font-size:0.85rem;">No faces matched current sensitivity thresholds. Try lowering scale factor or min neighbors.</span>';
+            }
+        } else {
+            alert(data.error || "Face detection failed.");
+        }
+    } catch (err) {
+        showLoading('face-loading-overlay', false);
+        console.error("Face detection error:", err);
+        alert("Failed to communicate with face detection backend.");
+    }
+}
+</script>
+{% endblock %}

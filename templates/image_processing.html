@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+
+{% block title %}Image Processing Playground — AI Vision Studio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fa-solid fa-sliders" style="color: var(--blue-600);"></i>
+            Image Processing Playground
+        </h1>
+        <p class="page-description">
+            Experiment interactively with OpenCV filters, blurring, edge detection, thresholding, brightness, contrast, and geometric transforms.
+        </p>
+    </div>
+</div>
+
+<div class="studio-grid">
+    <!-- Left Controls Sidebar -->
+    <aside class="controls-panel" id="processing-controls-sidebar">
+        <!-- 1. Image Source / Dropzone -->
+        <div class="panel-section">
+            <div class="section-title">
+                <i class="fa-solid fa-upload"></i> Source Image
+            </div>
+
+            <div class="dropzone-container" id="dropzone-processing">
+                <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+                <div class="dropzone-title">Drop image here or click to browse</div>
+                <div class="dropzone-sub">Supports JPG, PNG, WEBP (Max 16MB)</div>
+                <input type="file" id="file-input-processing" class="file-input-hidden" accept="image/png, image/jpeg, image/jpg, image/webp">
+            </div>
+
+            {% if samples %}
+            <div class="samples-picker">
+                <div class="samples-label"><i class="fa-solid fa-images"></i> Or pick a sample image:</div>
+                <div class="samples-pills">
+                    {% for sample in samples %}
+                    <span class="sample-pill" data-sample="{{ sample }}" onclick="selectSample('{{ sample }}', onSamplePicked)">
+                        <i class="fa-solid fa-image"></i> {{ sample }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <form id="filter-controls-form">
+            <input type="hidden" id="selected-sample-name" name="sample_name" value="">
+
+            <!-- 2. Color & Tone -->
+            <div class="panel-section">
+                <div class="section-title">
+                    <i class="fa-solid fa-palette"></i> Color & Filter Modes
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Color Conversion / Artistic Filter</label>
+                    <select class="form-select" id="param-color-mode" name="color_mode">
+                        <option value="original">Original (Full Color BGR)</option>
+                        <option value="grayscale">Grayscale (Single Channel)</option>
+                        <option value="sepia">Warm Sepia Vintage Tone</option>
+                        <option value="invert">Invert / Color Negative</option>
+                        <option value="sharpen">Unsharp Sharpening Kernel</option>
+                        <option value="sketch">Pencil Sketch Effect</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label">
+                        <span>Brightness</span>
+                        <span class="form-val-badge" id="val-brightness">0</span>
+                    </div>
+                    <input type="range" class="range-slider" id="param-brightness" name="brightness" min="-100" max="100" value="0">
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label">
+                        <span>Contrast</span>
+                        <span class="form-val-badge" id="val-contrast">1.0x</span>
+                    </div>
+                    <input type="range" class="range-slider" id="param-contrast" name="contrast" min="0.2" max="2.5" step="0.1" value="1.0">
+                </div>
+            </div>
+
+            <!-- 3. Blur Filters -->
+            <div class="panel-section">
+                <div class="section-title">
+                    <i class="fa-solid fa-droplet"></i> Blurring & Smoothing
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Blur Method</label>
+                    <select class="form-select" id="param-blur-type" name="blur_type">
+                        <option value="none">No Blur</option>
+                        <option value="gaussian">Gaussian Blur (Natural Falloff)</option>
+                        <option value="box">Box / Average Blur</option>
+                        <option value="median">Median Blur (Salt & Pepper reduction)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <div class="form-label">
+                        <span>Blur Kernel Size</span>
+                        <span class="form-val-badge" id="val-blur-intensity">0 px</span>
+                    </div>
+                    <input type="range" class="range-slider" id="param-blur-intensity" name="blur_intensity" min="0" max="31" step="2" value="0">
+                </div>
+            </div>
+
+            <!-- 4. Edge Detection -->
+            <div class="panel-section">
+                <div class="section-title">
+                    <i class="fa-solid fa-draw-polygon"></i> Edge Detection
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Edge Operator</label>
+                    <select class="form-select" id="param-edge-type" name="edge_type">
+                        <option value="none">Disabled</option>
+                        <option value="canny">Canny Edge Detector</option>
+                        <option value="sobel">Sobel Operator (Gradients)</option>
+                        <option value="laplacian">Laplacian (2nd Derivative)</option>
+                    </select>
+                </div>
+                <div id="canny-thresholds-wrapper" style="display: none;">
+                    <div class="form-group">
+                        <div class="form-label">
+                            <span>Canny Low Threshold</span>
+                            <span class="form-val-badge" id="val-canny-low">50</span>
+                        </div>
+                        <input type="range" class="range-slider" id="param-canny-low" name="canny_low" min="1" max="255" value="50">
+                    </div>
+                    <div class="form-group">
+                        <div class="form-label">
+                            <span>Canny High Threshold</span>
+                            <span class="form-val-badge" id="val-canny-high">150</span>
+                        </div>
+                        <input type="range" class="range-slider" id="param-canny-high" name="canny_high" min="1" max="255" value="150">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Thresholding -->
+            <div class="panel-section">
+                <div class="section-title">
+                    <i class="fa-solid fa-circle-half-stroke"></i> Thresholding & Binarization
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Binarization Method</label>
+                    <select class="form-select" id="param-threshold-type" name="threshold_type">
+                        <option value="none">No Thresholding</option>
+                        <option value="binary">Binary Threshold</option>
+                        <option value="binary_inv">Binary Inverted</option>
+                        <option value="otsu">Otsu's Automatic Thresholding</option>
+                        <option value="adaptive_gaussian">Adaptive Gaussian</option>
+                        <option value="adaptive_mean">Adaptive Mean</option>
+                    </select>
+                </div>
+                <div class="form-group" id="threshold-val-wrapper">
+                    <div class="form-label">
+                        <span>Threshold Value</span>
+                        <span class="form-val-badge" id="val-threshold-val">127</span>
+                    </div>
+                    <input type="range" class="range-slider" id="param-threshold-val" name="threshold_val" min="0" max="255" value="127">
+                </div>
+            </div>
+
+            <!-- 6. Geometric Transforms -->
+            <div class="panel-section">
+                <div class="section-title">
+                    <i class="fa-solid fa-arrows-rotate"></i> Geometry & Orientation
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div class="form-group">
+                        <label class="form-label">Rotation</label>
+                        <select class="form-select" id="param-rotation" name="rotation">
+                            <option value="0">0°</option>
+                            <option value="90">90° Clockwise</option>
+                            <option value="180">180°</option>
+                            <option value="270">270° CCW</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Flip</label>
+                        <select class="form-select" id="param-flip" name="flip">
+                            <option value="none">None</option>
+                            <option value="horizontal">Horizontal</option>
+                            <option value="vertical">Vertical</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
+                <button type="button" class="btn btn-secondary btn-full" id="btn-reset-filters" onclick="resetForm()">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> Reset
+                </button>
+                <button type="submit" class="btn btn-primary btn-full" id="btn-apply-filters">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Apply Filters
+                </button>
+            </div>
+        </form>
+    </aside>
+
+    <!-- Right Side: Comparison Viewer -->
+    <main class="viewer-card" id="processing-viewer-card">
+        <div class="viewer-header">
+            <h2 class="viewer-title">
+                <i class="fa-solid fa-image"></i>
+                <span id="viewer-status-text">Image Comparison</span>
+            </h2>
+
+            <div class="viewer-actions">
+                <button type="button" class="btn btn-outline btn-sm active" id="btn-mode-split" onclick="switchViewMode('split')" title="Interactive Split-Slider View">
+                    <i class="fa-solid fa-table-columns"></i> Split Slider
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-mode-side" onclick="switchViewMode('side')" title="Side-by-Side Dual View">
+                    <i class="fa-solid fa-border-all"></i> Side-by-Side
+                </button>
+                <a id="btn-download-processed" href="#" class="btn btn-primary btn-sm" style="display: none;">
+                    <i class="fa-solid fa-download"></i> Download Result
+                </a>
+            </div>
+        </div>
+
+        <!-- Viewer Container -->
+        <div class="comparison-wrapper" id="comparison-wrapper">
+            <!-- Loading overlay -->
+            <div class="loading-overlay" id="loading-overlay" style="display: none;">
+                <span class="spinner" style="width: 36px; height: 36px;"></span>
+                <p style="font-weight: 700; margin-top: 0.5rem;">Applying OpenCV Algorithms...</p>
+            </div>
+
+            <!-- Empty Placeholder -->
+            <div class="viewer-placeholder" id="viewer-placeholder">
+                <i class="fa-regular fa-image"></i>
+                <h3 style="color: #cbd5e1; font-weight: 700; margin-bottom: 0.25rem;">No Image Loaded</h3>
+                <p>Upload a photo or select a sample image from the left panel to test computer vision filters.</p>
+            </div>
+
+            <!-- Split-Slider View -->
+            <div class="split-slider-container" id="split-slider-container" style="display: none;">
+                <!-- Processed (Background Layer) -->
+                <img id="img-after-split" src="" alt="Processed Image">
+                
+                <!-- Original (Foreground Layer with Clip Width) -->
+                <div class="split-slider-before" id="split-slider-before">
+                    <img id="img-before-split" src="" alt="Original Image">
+                </div>
+
+                <!-- Draggable Divider Handle -->
+                <div class="split-slider-handle" id="split-slider-handle">
+                    <i class="fa-solid fa-left-right"></i>
+                </div>
+            </div>
+
+            <!-- Side-by-Side View -->
+            <div class="side-by-side-view" id="side-by-side-view" style="display: none;">
+                <div class="image-panel">
+                    <div class="image-panel-label">
+                        <span>Original Input</span>
+                        <span id="side-orig-dims"></span>
+                    </div>
+                    <img id="img-before-side" src="" alt="Original Image">
+                </div>
+                <div class="image-panel">
+                    <div class="image-panel-label">
+                        <span style="color: var(--cyan-400);">OpenCV Result</span>
+                        <span id="side-proc-dims"></span>
+                    </div>
+                    <img id="img-after-side" src="" alt="Processed Image">
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Metadata Bar -->
+        <div class="viewer-meta-bar" id="viewer-meta-bar" style="display: none;">
+            <div class="meta-group">
+                <div class="meta-item">
+                    <i class="fa-solid fa-expand"></i>
+                    <span>Dimensions: <strong id="meta-resolution">-</strong></span>
+                </div>
+                <div class="meta-item">
+                    <i class="fa-solid fa-file-zipper"></i>
+                    <span>Output Size: <strong id="meta-filesize">-</strong></span>
+                </div>
+            </div>
+            <div class="meta-group">
+                <div class="meta-item">
+                    <i class="fa-solid fa-bolt" style="color: var(--amber-500);"></i>
+                    <span>Processing Time: <strong id="meta-time" style="color: var(--blue-600);">-</strong></span>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+let currentFile = null;
+let currentSample = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    initSplitSlider();
+
+    // Setup slider syncs
+    updateSliderBadge('param-brightness', 'val-brightness');
+    updateSliderBadge('param-contrast', 'val-contrast', 'x');
+    updateSliderBadge('param-blur-intensity', 'val-blur-intensity', ' px');
+    updateSliderBadge('param-canny-low', 'val-canny-low');
+    updateSliderBadge('param-canny-high', 'val-canny-high');
+    updateSliderBadge('param-threshold-val', 'val-threshold-val');
+
+    // Show/hide Canny thresholds
+    document.getElementById('param-edge-type').addEventListener('change', (e) => {
+        document.getElementById('canny-thresholds-wrapper').style.display = (e.target.value === 'canny') ? 'block' : 'none';
+    });
+
+    // Setup Dropzone
+    setupDropzone('dropzone-processing', 'file-input-processing', (file) => {
+        currentFile = file;
+        currentSample = null;
+        document.getElementById('selected-sample-name').value = '';
+        document.querySelectorAll('.sample-pill').forEach(p => p.classList.remove('active'));
+
+        // Local Preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            showInitialImages(e.target.result);
+            applyFilters();
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Form submit
+    document.getElementById('filter-controls-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        applyFilters();
+    });
+
+    // Auto-select first sample for immediate wow factor
+    const firstSample = document.querySelector('.sample-pill');
+    if (firstSample) {
+        firstSample.click();
+    }
+});
+
+function onSamplePicked(sampleName) {
+    currentSample = sampleName;
+    currentFile = null;
+    document.getElementById('selected-sample-name').value = sampleName;
+    const sampleUrl = `/static/samples/${sampleName}`;
+    showInitialImages(sampleUrl);
+    applyFilters();
+}
+
+function showInitialImages(url) {
+    document.getElementById('viewer-placeholder').style.display = 'none';
+    document.getElementById('split-slider-container').style.display = 'block';
+    document.getElementById('img-before-split').src = url;
+    document.getElementById('img-after-split').src = url;
+    document.getElementById('img-before-side').src = url;
+    document.getElementById('img-after-side').src = url;
+}
+
+async function applyFilters() {
+    if (!currentFile && !currentSample) {
+        alert("Please upload an image or select a sample image first.");
+        return;
+    }
+
+    showLoading('loading-overlay', true);
+    const form = document.getElementById('filter-controls-form');
+    const formData = new FormData(form);
+
+    if (currentFile) {
+        formData.append('image', currentFile);
+    }
+
+    try {
+        const resp = await fetch('/api/process-image', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await resp.json();
+        showLoading('loading-overlay', false);
+
+        if (data.success) {
+            // Update split-slider images
+            document.getElementById('img-before-split').src = data.original_url;
+            document.getElementById('img-after-split').src = data.processed_url;
+
+            // Update side-by-side images
+            document.getElementById('img-before-side').src = data.original_url;
+            document.getElementById('img-after-side').src = data.processed_url;
+
+            // Show download button
+            const dlBtn = document.getElementById('btn-download-processed');
+            dlBtn.href = `/download/results/${data.output_filename}`;
+            dlBtn.style.display = 'inline-flex';
+
+            // Show metadata
+            document.getElementById('viewer-meta-bar').style.display = 'flex';
+            document.getElementById('meta-resolution').textContent = `${data.metadata.width} × ${data.metadata.height} px`;
+            document.getElementById('meta-filesize').textContent = `${data.metadata.size_kb} KB`;
+            document.getElementById('meta-time').textContent = `${data.elapsed_ms} ms`;
+
+            if (data.original_metadata) {
+                document.getElementById('side-orig-dims').textContent = `${data.original_metadata.width}×${data.original_metadata.height} (${data.original_metadata.size_kb}KB)`;
+            }
+            document.getElementById('side-proc-dims').textContent = `${data.metadata.width}×${data.metadata.height} (${data.metadata.size_kb}KB)`;
+        } else {
+            alert(data.error || "Failed to process image.");
+        }
+    } catch (err) {
+        showLoading('loading-overlay', false);
+        console.error("Filter request error:", err);
+        alert("Network or server error while applying filters.");
+    }
+}
+
+function resetForm() {
+    document.getElementById('filter-controls-form').reset();
+    document.getElementById('val-brightness').textContent = '0';
+    document.getElementById('val-contrast').textContent = '1.0x';
+    document.getElementById('val-blur-intensity').textContent = '0 px';
+    document.getElementById('val-canny-low').textContent = '50';
+    document.getElementById('val-canny-high').textContent = '150';
+    document.getElementById('val-threshold-val').textContent = '127';
+    document.getElementById('canny-thresholds-wrapper').style.display = 'none';
+
+    if (currentFile || currentSample) {
+        applyFilters();
+    }
+}
+</script>
+{% endblock %}

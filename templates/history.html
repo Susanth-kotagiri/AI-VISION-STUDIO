@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis History — AI Vision Studio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fa-solid fa-clock-rotate-left" style="color: var(--blue-600);"></i>
+            Analysis History & Logs
+        </h1>
+        <p class="page-description">
+            Complete persistent audit logs stored in SQLite tracking every image transformation, detection pass, and performance benchmark.
+        </p>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem;">
+        {% if records %}
+        <button type="button" class="btn btn-danger btn-sm" id="btn-clear-history" onclick="clearAllHistory()">
+            <i class="fa-solid fa-trash-can"></i> Clear All History
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stats Overview -->
+<div class="hero-stats-row" style="margin-top: 0; margin-bottom: 2rem; border-top: none; padding-top: 0;">
+    <div class="hero-stat-card" style="background: #ffffff; border-color: var(--border-light); color: var(--navy-900);">
+        <div class="stat-value" style="color: var(--blue-600);">{{ stats.total_analyses }}</div>
+        <div class="stat-label" style="color: var(--text-secondary);">Total Saved Logs</div>
+    </div>
+    <div class="hero-stat-card" style="background: #ffffff; border-color: var(--border-light); color: var(--navy-900);">
+        <div class="stat-value" style="color: var(--emerald-500);">{{ stats.total_faces_found }}</div>
+        <div class="stat-label" style="color: var(--text-secondary);">Faces Logged</div>
+    </div>
+    <div class="hero-stat-card" style="background: #ffffff; border-color: var(--border-light); color: var(--navy-900);">
+        <div class="stat-value" style="color: #9333ea;">{{ stats.total_objects_found }}</div>
+        <div class="stat-label" style="color: var(--text-secondary);">Objects Logged</div>
+    </div>
+</div>
+
+<!-- History Table Card -->
+<div class="history-card">
+    <div class="history-table-container">
+        {% if records %}
+        <table class="history-table" id="history-main-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Result Preview</th>
+                    <th>Feature</th>
+                    <th>Original File</th>
+                    <th>Parameters & Details</th>
+                    <th>File Size</th>
+                    <th>Speed</th>
+                    <th>Date & Time</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in records %}
+                <tr id="history-row-{{ r.id }}">
+                    <td class="font-mono">{{ r.id }}</td>
+                    <td>
+                        {% if r.processed_filename %}
+                        <a href="{{ url_for('static', filename='results/' + r.processed_filename) }}" target="_blank">
+                            <img src="{{ url_for('static', filename='results/' + r.processed_filename) }}" class="history-thumb" alt="Thumbnail">
+                        </a>
+                        {% else %}
+                        <img src="{{ url_for('static', filename='uploads/' + r.original_filename) }}" class="history-thumb" alt="Original">
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.feature == 'image_processing' %}
+                        <span class="badge badge-blue"><i class="fa-solid fa-sliders"></i> Filters</span>
+                        {% elif r.feature == 'face_detection' %}
+                        <span class="badge badge-emerald"><i class="fa-regular fa-face-smile"></i> Face</span>
+                        {% elif r.feature == 'object_detection' %}
+                        <span class="badge badge-purple"><i class="fa-solid fa-cube"></i> YOLO</span>
+                        {% elif r.feature == 'webcam_capture' %}
+                        <span class="badge badge-amber"><i class="fa-solid fa-video"></i> Webcam</span>
+                        {% else %}
+                        <span class="badge badge-blue">{{ r.feature }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="font-mono" style="font-size: 0.8rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ r.original_filename }}
+                    </td>
+                    <td style="font-size: 0.8rem; max-width: 250px;">
+                        {% if r.details %}
+                        <div class="font-mono" style="color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {{ r.details }}
+                        </div>
+                        {% else %}
+                        <span style="color: #94a3b8;">Standard execution</span>
+                        {% endif %}
+                    </td>
+                    <td class="font-mono">{{ r.file_size_kb }} KB</td>
+                    <td class="font-mono" style="color: var(--blue-600); font-weight: 600;">
+                        {{ r.processing_time_ms }} ms
+                    </td>
+                    <td style="font-size: 0.8rem; color: #64748b; white-space: nowrap;">
+                        {{ r.timestamp }}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.35rem;">
+                            {% if r.processed_filename %}
+                            <a href="{{ url_for('download_file', folder='results', filename=r.processed_filename) }}" class="btn btn-outline btn-sm" title="Download Image">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
+                            {% endif %}
+                            <button type="button" class="btn btn-outline btn-sm" onclick="deleteHistoryRecord('{{ r.id }}')" title="Delete record" style="color: var(--rose-500);">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="viewer-placeholder" style="padding: 3rem 1.5rem;">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <h3 style="color: var(--navy-900); font-weight: 700; margin-bottom: 0.25rem;">No History Recorded Yet</h3>
+            <p>Process your first image or run face detection to see logs appear here.</p>
+            <a href="{{ url_for('image_processing') }}" class="btn btn-primary btn-sm" style="margin-top: 1rem;">
+                Go to Playground
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Object Detection — AI Vision Studio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fa-solid fa-cube" style="color: var(--blue-600);"></i>
+            Pretrained AI Object Detection (YOLO)
+        </h1>
+        <p class="page-description">
+            Detect and classify everyday objects in real time using a lightweight YOLOv5 Deep Neural Network
+            running through OpenCV's native high-performance DNN execution engine.
+        </p>
+    </div>
+</div>
+
+<div class="studio-grid">
+    <!-- Left Controls Panel -->
+    <aside class="controls-panel" id="object-controls-sidebar">
+        <!-- 1. Source Image -->
+        <div class="panel-section">
+            <div class="section-title">
+                <i class="fa-solid fa-upload"></i> Source Image
+            </div>
+
+            <div class="dropzone-container" id="dropzone-object">
+                <i class="fa-solid fa-object-ungroup dropzone-icon"></i>
+                <div class="dropzone-title">Upload an image for AI detection</div>
+                <div class="dropzone-sub">Street scenes, pets, vehicles, or items (JPG, PNG)</div>
+                <input type="file" id="file-input-object" class="file-input-hidden" accept="image/png, image/jpeg, image/jpg, image/webp">
+            </div>
+
+            {% if samples %}
+            <div class="samples-picker">
+                <div class="samples-label"><i class="fa-solid fa-images"></i> Quick test samples:</div>
+                <div class="samples-pills">
+                    {% for sample in samples %}
+                    <span class="sample-pill" data-sample="{{ sample }}" onclick="selectSample('{{ sample }}', onObjectSamplePicked)">
+                        <i class="fa-solid fa-tag"></i> {{ sample }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <form id="object-detection-form">
+            <input type="hidden" id="selected-object-sample" name="sample_name" value="">
+
+            <!-- 2. AI Confidence Settings -->
+            <div class="panel-section">
+                <div class="section-title">
+                    <i class="fa-solid fa-sliders"></i> AI Sensitivity & Thresholds
+                </div>
+
+                <div class="form-group">
+                    <div class="form-label">
+                        <span>Confidence Threshold</span>
+                        <span class="form-val-badge" id="val-conf-threshold">35%</span>
+                    </div>
+                    <input type="range" class="range-slider" id="param-conf-threshold" name="conf_threshold" min="0.10" max="0.90" step="0.05" value="0.35">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+                        Minimum probability score required to display a detection box.
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full" id="btn-run-object-detection">
+                <i class="fa-solid fa-brain"></i> Run AI Object Detection
+            </button>
+        </form>
+
+        <!-- Model Info Callout -->
+        <div class="edu-callout" style="margin-top: 1.5rem; background: #eff6ff; border-left-color: var(--blue-600); color: #1e3a8a;">
+            <p><strong><i class="fa-solid fa-circle-info"></i> Pretrained Architecture:</strong></p>
+            <p style="margin-top: 0.35rem; font-size: 0.82rem; line-height: 1.4; color: #1e40af;">
+                <strong>YOLO (You Only Look Once):</strong> Evaluates an entire image in a single neural network pass,
+                predicting bounding boxes and class probabilities simultaneously across 80 common COCO object classes
+                (persons, cars, dogs, bottles, sports balls, etc.).
+            </p>
+        </div>
+    </aside>
+
+    <!-- Right Viewer Panel -->
+    <main class="viewer-card" id="object-viewer-card">
+        <div class="viewer-header">
+            <h2 class="viewer-title">
+                <i class="fa-solid fa-eye"></i>
+                <span>Detected Objects & Bounding Boxes</span>
+            </h2>
+
+            <div class="viewer-actions">
+                <button type="button" class="btn btn-outline btn-sm active" id="btn-mode-split" onclick="switchViewMode('split')">
+                    <i class="fa-solid fa-table-columns"></i> Split View
+                </button>
+                <button type="button" class="btn btn-outline btn-sm" id="btn-mode-side" onclick="switchViewMode('side')">
+                    <i class="fa-solid fa-border-all"></i> Side-by-Side
+                </button>
+                <a id="btn-download-object-result" href="#" class="btn btn-primary btn-sm" style="display: none;">
+                    <i class="fa-solid fa-download"></i> Download Annotated
+                </a>
+            </div>
+        </div>
+
+        <div class="comparison-wrapper" id="comparison-wrapper">
+            <div class="loading-overlay" id="object-loading-overlay" style="display: none;">
+                <span class="spinner" style="width: 36px; height: 36px;"></span>
+                <p style="font-weight: 700; margin-top: 0.5rem;">Running YOLO DNN Inference...</p>
+            </div>
+
+            <div class="viewer-placeholder" id="viewer-placeholder">
+                <i class="fa-solid fa-cube"></i>
+                <h3 style="color: #cbd5e1; font-weight: 700; margin-bottom: 0.25rem;">No Image Loaded</h3>
+                <p>Upload a photo or select the sample street scene to test pretrained object detection.</p>
+            </div>
+
+            <!-- Split-Slider View -->
+            <div class="split-slider-container" id="split-slider-container" style="display: none;">
+                <img id="img-after-split" src="" alt="Detected Objects">
+                <div class="split-slider-before" id="split-slider-before">
+                    <img id="img-before-split" src="" alt="Original Photo">
+                </div>
+                <div class="split-slider-handle" id="split-slider-handle">
+                    <i class="fa-solid fa-left-right"></i>
+                </div>
+            </div>
+
+            <!-- Side-by-Side View -->
+            <div class="side-by-side-view" id="side-by-side-view" style="display: none;">
+                <div class="image-panel">
+                    <div class="image-panel-label">Original Photo</div>
+                    <img id="img-before-side" src="" alt="Original Photo">
+                </div>
+                <div class="image-panel">
+                    <div class="image-panel-label" style="color: var(--cyan-400);">YOLO Predictions</div>
+                    <img id="img-after-side" src="" alt="Detected Objects">
+                </div>
+            </div>
+        </div>
+
+        <!-- Detection Results Section -->
+        <div id="object-results-container" style="display: none; margin-top: 1.5rem;">
+            <!-- Category Pills Summary -->
+            <div class="face-summary-box" style="margin-top: 0;">
+                <div class="face-summary-icon" style="color: #9333ea;">
+                    <i class="fa-solid fa-shapes"></i>
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="font-size: 1.1rem; font-weight: 800; color: var(--navy-900);">
+                        <span id="detected-obj-count-badge" style="color: var(--blue-600);">0</span> Objects Detected
+                    </h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                        Inference completed in <strong id="object-elapsed-time" style="color: var(--blue-600);">0</strong> ms via OpenCV DNN.
+                    </p>
+                    <div class="detection-pills" id="object-category-pills"></div>
+                </div>
+            </div>
+
+            <!-- Detailed Detections Table -->
+            <div style="margin-top: 1.25rem;">
+                <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.5rem;">
+                    Detection Details:
+                </h4>
+                <div class="history-table-container">
+                    <table class="history-table" style="font-size: 0.85rem;">
+                        <thead>
+                            <tr>
+                                <th>Class</th>
+                                <th>Confidence</th>
+                                <th>Bounding Box (X, Y, W, H)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="object-detections-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+let currentObjFile = null;
+let currentObjSample = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    initSplitSlider();
+
+    const slider = document.getElementById('param-conf-threshold');
+    const badge = document.getElementById('val-conf-threshold');
+    slider.addEventListener('input', () => {
+        badge.textContent = Math.round(parseFloat(slider.value) * 100) + '%';
+    });
+
+    setupDropzone('dropzone-object', 'file-input-object', (file) => {
+        currentObjFile = file;
+        currentObjSample = null;
+        document.getElementById('selected-object-sample').value = '';
+        document.querySelectorAll('.sample-pill').forEach(p => p.classList.remove('active'));
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            showObjectImages(e.target.result);
+            runObjectDetection();
+        };
+        reader.readAsDataURL(file);
+    });
+
+    document.getElementById('object-detection-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        runObjectDetection();
+    });
+
+    // Auto-select sports sample
+    const samplePill = document.querySelector('[data-sample="street_sports.jpg"]');
+    if (samplePill) {
+        samplePill.click();
+    }
+});
+
+function onObjectSamplePicked(sampleName) {
+    currentObjSample = sampleName;
+    currentObjFile = null;
+    document.getElementById('selected-object-sample').value = sampleName;
+    const url = `/static/samples/${sampleName}`;
+    showObjectImages(url);
+    runObjectDetection();
+}
+
+function showObjectImages(url) {
+    document.getElementById('viewer-placeholder').style.display = 'none';
+    document.getElementById('split-slider-container').style.display = 'block';
+    document.getElementById('img-before-split').src = url;
+    document.getElementById('img-after-split').src = url;
+    document.getElementById('img-before-side').src = url;
+    document.getElementById('img-after-side').src = url;
+}
+
+async function runObjectDetection() {
+    if (!currentObjFile && !currentObjSample) {
+        alert("Please select or upload an image first.");
+        return;
+    }
+
+    showLoading('object-loading-overlay', true);
+    const form = document.getElementById('object-detection-form');
+    const formData = new FormData(form);
+
+    if (currentObjFile) {
+        formData.append('image', currentObjFile);
+    }
+
+    try {
+        const resp = await fetch('/api/detect-objects', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await resp.json();
+        showLoading('object-loading-overlay', false);
+
+        if (data.success) {
+            document.getElementById('img-before-split').src = data.original_url;
+            document.getElementById('img-after-split').src = data.processed_url;
+            document.getElementById('img-before-side').src = data.original_url;
+            document.getElementById('img-after-side').src = data.processed_url;
+
+            const dlBtn = document.getElementById('btn-download-object-result');
+            dlBtn.href = `/download/results/${data.output_filename}`;
+            dlBtn.style.display = 'inline-flex';
+
+            document.getElementById('object-results-container').style.display = 'block';
+            document.getElementById('detected-obj-count-badge').textContent = data.object_count;
+            document.getElementById('object-elapsed-time').textContent = data.elapsed_ms;
+
+            // Render category pills
+            const pillsContainer = document.getElementById('object-category-pills');
+            pillsContainer.innerHTML = '';
+            for (const [cls, count] of Object.entries(data.summary || {})) {
+                const tag = document.createElement('span');
+                tag.className = 'detection-tag';
+                tag.innerHTML = `<i class="fa-solid fa-tag"></i> ${cls.toUpperCase()}: ${count}`;
+                pillsContainer.appendChild(tag);
+            }
+
+            // Render detailed table
+            const tbody = document.getElementById('object-detections-tbody');
+            tbody.innerHTML = '';
+
+            if (data.detections && data.detections.length > 0) {
+                data.detections.forEach(d => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${d.class}</strong></td>
+                        <td><span class="badge badge-emerald">${d.confidence}%</span></td>
+                        <td class="font-mono" style="font-size:0.8rem;">[x:${d.box[0]}, y:${d.box[1]}, w:${d.box[2]}, h:${d.box[3]}]</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#94a3b8;">No objects passed the current confidence threshold. Try lowering the threshold slider.</td></tr>';
+            }
+        } else {
+            alert(data.error || "Object detection failed.");
+        }
+    } catch (err) {
+        showLoading('object-loading-overlay', false);
+        console.error("Object detection error:", err);
+        alert("Failed to communicate with object detection backend.");
+    }
+}
+</script>
+{% endblock %}

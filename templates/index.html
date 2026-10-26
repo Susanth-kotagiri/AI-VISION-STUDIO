@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — AI Vision Studio{% endblock %}
+
+{% block content %}
+<!-- Hero Banner -->
+<section class="hero-banner" id="dashboard-hero">
+    <div class="hero-glow"></div>
+    <div class="hero-content">
+        <span class="hero-tag">
+            <i class="fa-solid fa-sparkles"></i> Computer Vision Studio
+        </span>
+        <h1 class="hero-title">Interactive AI & Computer Vision Lab</h1>
+        <p class="hero-subtitle">
+            Upload images or connect your webcam to experiment with real-time OpenCV filters,
+            Haar Cascade face detection, edge detection, and pretrained deep neural network object detection.
+        </p>
+
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <a href="{{ url_for('image_processing') }}" class="btn btn-primary btn-lg" id="hero-btn-playground">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Open Playground
+            </a>
+            <a href="{{ url_for('webcam') }}" class="btn btn-secondary btn-lg" id="hero-btn-webcam">
+                <i class="fa-solid fa-video"></i> Launch Webcam
+            </a>
+        </div>
+    </div>
+
+    <!-- Live Performance Stats -->
+    <div class="hero-stats-row" id="dashboard-stats-strip">
+        <div class="hero-stat-card">
+            <div class="stat-value" id="stat-total-analyses">{{ stats.total_analyses }}</div>
+            <div class="stat-label">Total Analyses</div>
+        </div>
+        <div class="hero-stat-card">
+            <div class="stat-value" id="stat-faces-found">{{ stats.total_faces_found }}</div>
+            <div class="stat-label">Faces Detected</div>
+        </div>
+        <div class="hero-stat-card">
+            <div class="stat-value" id="stat-objects-found">{{ stats.total_objects_found }}</div>
+            <div class="stat-label">Objects Detected</div>
+        </div>
+        <div class="hero-stat-card">
+            <div class="stat-value" id="stat-processed-count">{{ stats.image_processing_count }}</div>
+            <div class="stat-label">Image Filters</div>
+        </div>
+        <div class="hero-stat-card">
+            <div class="stat-value" id="stat-webcam-count">{{ stats.webcam_count }}</div>
+            <div class="stat-label">Webcam Sessions</div>
+        </div>
+    </div>
+</section>
+
+<!-- Studio Feature Modules -->
+<div class="page-header">
+    <div>
+        <h2 class="page-title">
+            <i class="fa-solid fa-microchip" style="color: var(--blue-600);"></i>
+            Vision Studio Features
+        </h2>
+        <p class="page-description">
+            Choose a computer vision module below to begin experimentation. All processing is computed using optimized Python and OpenCV.
+        </p>
+    </div>
+</div>
+
+<div class="features-grid" id="features-cards-container">
+    <!-- Card 1: Image Processing Playground -->
+    <div class="feature-card" id="card-feature-processing">
+        <div>
+            <div class="feature-card-header">
+                <div class="feature-icon-wrapper icon-blue">
+                    <i class="fa-solid fa-sliders"></i>
+                </div>
+                <span class="badge badge-blue">Interactive</span>
+            </div>
+            <h3 class="feature-title">Image Processing</h3>
+            <p class="feature-description">
+                Transform images using classical and modern computer vision filters with live interactive controls.
+            </p>
+            <ul class="feature-bullets">
+                <li><i class="fa-solid fa-check"></i> Brightness, Contrast & Resizing</li>
+                <li><i class="fa-solid fa-check"></i> Gaussian, Box & Median Blurring</li>
+                <li><i class="fa-solid fa-check"></i> Canny, Sobel & Laplacian Edges</li>
+                <li><i class="fa-solid fa-check"></i> Otsu & Adaptive Thresholding</li>
+                <li><i class="fa-solid fa-check"></i> Split-slider Before & After comparison</li>
+            </ul>
+        </div>
+        <a href="{{ url_for('image_processing') }}" class="btn btn-primary btn-full" id="btn-launch-playground">
+            Launch Playground <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    </div>
+
+    <!-- Card 2: Face Detection -->
+    <div class="feature-card" id="card-feature-face">
+        <div>
+            <div class="feature-card-header">
+                <div class="feature-icon-wrapper icon-cyan">
+                    <i class="fa-regular fa-face-smile"></i>
+                </div>
+                <span class="badge badge-blue">Haar Cascades</span>
+            </div>
+            <h3 class="feature-title">Face Detection</h3>
+            <p class="feature-description">
+                Locate human faces and facial features instantly using OpenCV Haar Feature-based Cascade Classifiers.
+            </p>
+            <ul class="feature-bullets">
+                <li><i class="fa-solid fa-check"></i> Multi-scale frontal face detection</li>
+                <li><i class="fa-solid fa-check"></i> Optional eye & feature localization</li>
+                <li><i class="fa-solid fa-check"></i> Configurable scale factor & neighbors</li>
+                <li><i class="fa-solid fa-check"></i> Auto-crops detected face avatar cards</li>
+                <li><i class="fa-solid fa-check"></i> Educational pattern-vs-identity callouts</li>
+            </ul>
+        </div>
+        <a href="{{ url_for('face_detection') }}" class="btn btn-primary btn-full" id="btn-launch-face">
+            Explore Face Detection <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    </div>
+
+    <!-- Card 3: Real-Time Webcam Studio -->
+    <div class="feature-card" id="card-feature-webcam">
+        <div>
+            <div class="feature-card-header">
+                <div class="feature-icon-wrapper icon-emerald">
+                    <i class="fa-solid fa-video"></i>
+                </div>
+                <span class="badge badge-emerald">Real-Time</span>
+            </div>
+            <h3 class="feature-title">Webcam Studio</h3>
+            <p class="feature-description">
+                Direct in-browser camera access with instant canvas preview and one-click snapshot processing.
+            </p>
+            <ul class="feature-bullets">
+                <li><i class="fa-solid fa-check"></i> In-browser HTML5 live video stream</li>
+                <li><i class="fa-solid fa-check"></i> Real-time canvas filter overlays</li>
+                <li><i class="fa-solid fa-check"></i> Instant snapshot capture & analysis</li>
+                <li><i class="fa-solid fa-check"></i> Server-side OpenCV processing</li>
+                <li><i class="fa-solid fa-check"></i> Camera permission error handling</li>
+            </ul>
+        </div>
+        <a href="{{ url_for('webcam') }}" class="btn btn-primary btn-full" id="btn-launch-webcam">
+            Open Webcam Studio <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    </div>
+
+    <!-- Card 4: Pretrained Object Detection -->
+    <div class="feature-card" id="card-feature-object">
+        <div>
+            <div class="feature-card-header">
+                <div class="feature-icon-wrapper icon-purple">
+                    <i class="fa-solid fa-cube"></i>
+                </div>
+                <span class="badge badge-purple">Deep Learning</span>
+            </div>
+            <h3 class="feature-title">Object Detection</h3>
+            <p class="feature-description">
+                Leverage a pretrained MobileNet-SSD Deep Neural Network running through OpenCV's DNN engine.
+            </p>
+            <ul class="feature-bullets">
+                <li><i class="fa-solid fa-check"></i> 20 VOC object classes supported</li>
+                <li><i class="fa-solid fa-check"></i> High precision bounding box HUD overlays</li>
+                <li><i class="fa-solid fa-check"></i> Confidence threshold filtering</li>
+                <li><i class="fa-solid fa-check"></i> Summary table of detected items</li>
+                <li><i class="fa-solid fa-check"></i> Fast CPU inference via OpenCV DNN</li>
+            </ul>
+        </div>
+        <a href="{{ url_for('object_detection') }}" class="btn btn-primary btn-full" id="btn-launch-object">
+            Run Object Detection <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Recent Analysis History Feed -->
+{% if recent_activities %}
+<div class="page-header" style="margin-top: 2rem;">
+    <div>
+        <h2 class="page-title" style="font-size: 1.4rem;">
+            <i class="fa-solid fa-clock-rotate-left" style="color: var(--blue-600);"></i>
+            Recent Analyses
+        </h2>
+        <p class="page-description">History saved locally in SQLite.</p>
+    </div>
+    <a href="{{ url_for('history') }}" class="btn btn-outline btn-sm" id="btn-view-all-history">
+        View All History <i class="fa-solid fa-arrow-right"></i>
+    </a>
+</div>
+
+<div class="history-card">
+    <div class="history-table-container">
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Preview</th>
+                    <th>Module</th>
+                    <th>Filename</th>
+                    <th>Timestamp</th>
+                    <th>Speed</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in recent_activities %}
+                <tr id="history-row-{{ item.id }}">
+                    <td>
+                        {% if item.processed_filename %}
+                        <img src="{{ url_for('static', filename='results/' + item.processed_filename) }}" alt="Result" class="history-thumb">
+                        {% else %}
+                        <img src="{{ url_for('static', filename='uploads/' + item.original_filename) }}" alt="Original" class="history-thumb">
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-blue">{{ item.feature }}</span>
+                    </td>
+                    <td class="font-mono" style="font-size: 0.8rem;">
+                        {{ item.original_filename }}
+                    </td>
+                    <td>{{ item.timestamp }}</td>
+                    <td class="font-mono">{{ item.processing_time_ms }} ms</td>
+                    <td>
+                        {% if item.processed_filename %}
+                        <a href="{{ url_for('download_file', folder='results', filename=item.processed_filename) }}" class="btn btn-outline btn-sm">
+                            <i class="fa-solid fa-download"></i> Download
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Webcam Studio — AI Vision Studio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <i class="fa-solid fa-video" style="color: var(--blue-600);"></i>
+            Real-Time Webcam Studio
+        </h1>
+        <p class="page-description">
+            Stream live video directly from your webcam, apply real-time client-side filters,
+            and capture high-resolution snapshots for server-side OpenCV face detection and AI analysis.
+        </p>
+    </div>
+</div>
+
+<!-- Camera Error Notification Banner with Instant Simulator Fallback -->
+<div class="error-banner" id="camera-error-banner" style="display: none; max-width: 800px; margin: 0 auto 1.5rem auto;">
+    <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.25rem;"></i>
+    <span id="camera-error-msg">Camera permission was denied or device not found.</span>
+    <button type="button" class="btn btn-sm btn-primary" id="btn-err-switch-sim" style="margin-left: auto;">
+        <i class="fa-solid fa-microchip"></i> Run Virtual Camera Instead
+    </button>
+</div>
+
+<!-- Webcam Viewport Card -->
+<div class="webcam-viewport-card" id="webcam-viewport-container">
+    <!-- Hidden HTML5 video element capturing raw camera stream -->
+    <video id="webcam-video" autoplay playsinline muted style="display: none;"></video>
+
+    <!-- Canvas rendering live frames with real-time filters -->
+    <canvas id="webcam-canvas"></canvas>
+
+    <!-- Pre-activation placeholder view -->
+    <div class="webcam-prestart-overlay" id="webcam-prestart-overlay">
+        <i class="fa-solid fa-video" style="font-size: 3.5rem; color: var(--blue-500); margin-bottom: 1rem; opacity: 0.9;"></i>
+        <h3 style="color: #ffffff; font-weight: 700; margin-bottom: 0.5rem;">Webcam Stream Inactive</h3>
+        <p style="color: #94a3b8; font-size: 0.9rem; max-width: 440px; margin-bottom: 1.5rem;">
+            Click <strong>Start Camera</strong> to connect your device, or click <strong>Run Virtual Feed</strong> to simulate a live AI vision camera stream.
+        </p>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center;">
+            <button type="button" class="btn btn-primary" id="btn-prestart-hardware">
+                <i class="fa-solid fa-video"></i> Start Hardware Camera
+            </button>
+            <button type="button" class="btn btn-outline" id="btn-prestart-simulate" style="border-color: rgba(34, 211, 238, 0.4); color: var(--cyan-400);">
+                <i class="fa-solid fa-microchip"></i> Run Virtual Feed
+            </button>
+        </div>
+    </div>
+
+    <!-- HUD Overlay -->
+    <div class="webcam-hud-overlay" id="webcam-hud-overlay" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div class="webcam-live-badge" id="webcam-live-indicator">
+                <span class="blink-dot"></span> <span id="webcam-stream-mode-text">LIVE FEED</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <span class="webcam-stats-pill" id="webcam-fps-pill">0 FPS</span>
+                <span class="webcam-stats-pill" id="webcam-res-pill">640x480</span>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+            <div class="webcam-hud-subtext" id="webcam-hud-filter-label">
+                FILTER: ORIGINAL
+            </div>
+            <div style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.7); font-family: 'JetBrains Mono', monospace;">
+                AI VISION STUDIO HUD • REALTIME
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Webcam Controls Dock -->
+<div class="webcam-controls-dock" id="webcam-controls-dock">
+    <!-- Camera Activation -->
+    <button type="button" class="btn btn-primary btn-lg" id="btn-camera-start">
+        <i class="fa-solid fa-video"></i> Start Camera
+    </button>
+    <button type="button" class="btn btn-outline btn-lg" id="btn-camera-simulate">
+        <i class="fa-solid fa-microchip"></i> Virtual Feed
+    </button>
+    <button type="button" class="btn btn-danger btn-lg" id="btn-camera-stop" style="display: none;">
+        <i class="fa-solid fa-video-slash"></i> Stop Stream
+    </button>
+
+    <!-- Filter Selection -->
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <label for="webcam-filter-select" style="font-size: 0.85rem; font-weight: 700; color: var(--navy-900);">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Mode:
+        </label>
+        <select class="form-select" id="webcam-filter-select" style="width: 190px;">
+            <option value="original">Original (Full Color)</option>
+            <option value="grayscale">Realtime Grayscale</option>
+            <option value="invert">Realtime Negative / Invert</option>
+            <option value="sepia">Realtime Vintage Sepia</option>
+            <option value="edges">Realtime Edge Detector</option>
+            <option value="threshold">Realtime Threshold B&W</option>
+            <option value="blur">OpenCV Gaussian Blur</option>
+            <option value="canny">OpenCV Canny Edges</option>
+            <option value="sketch">OpenCV Pencil Sketch</option>
+            <option value="face">OpenCV Face Detection</option>
+            <option value="object">Deep Learning Objects</option>
+        </select>
+    </div>
+
+    <!-- HUD Face Target Toggle -->
+    <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; color: var(--text-secondary);">
+        <input type="checkbox" id="chk-hud-face-target" checked style="accent-color: var(--blue-600);">
+        <span>Face HUD Target</span>
+    </label>
+
+    <!-- Capture Snapshot -->
+    <button type="button" class="btn btn-success btn-lg" id="btn-camera-capture" disabled>
+        <i class="fa-solid fa-camera"></i> Capture Snapshot
+    </button>
+</div>
+
+<!-- Snapshot Status Notification -->
+<div id="capture-status" style="text-align: center; margin-top: 1rem; font-size: 0.9rem; font-weight: 600; display: none;"></div>
+
+<!-- Processed Snapshot Result Card -->
+<div class="viewer-card" id="webcam-result-card" style="display: none; max-width: 800px; margin: 2rem auto 0 auto;">
+    <div class="viewer-header">
+        <h2 class="viewer-title">
+            <i class="fa-solid fa-camera-retro"></i> Captured & Processed Snapshot
+        </h2>
+        <div class="viewer-actions">
+            <a id="btn-download-webcam" href="#" class="btn btn-primary btn-sm">
+                <i class="fa-solid fa-download"></i> Download Image
+            </a>
+        </div>
+    </div>
+
+    <div style="background: #090e1a; border-radius: var(--radius-md); overflow: hidden; display: flex; justify-content: center;">
+        <img id="webcam-result-img" src="" alt="Captured Snapshot" style="max-width: 100%; max-height: 500px; object-fit: contain;">
+    </div>
+
+    <div class="viewer-meta-bar" style="margin-top: 1rem;">
+        <div id="webcam-meta-text">Snapshot ready.</div>
+    </div>
+</div>
+
+<!-- Educational Help Card -->
+<div style="max-width: 800px; margin: 2rem auto 0 auto;">
+    <div class="edu-callout">
+        <p><strong><i class="fa-solid fa-shield-halved"></i> Privacy & Camera Permissions:</strong></p>
+        <p style="margin-top: 0.35rem; font-size: 0.82rem; line-height: 1.4;">
+            Your webcam feed runs entirely inside your browser using HTML5 MediaStream APIs.
+            Only when you explicitly click <strong>Capture Snapshot</strong> is the current frame
+            securely sent to the local OpenCV server for analysis and saved to your history.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    initWebcamStudio();
+});
+</script>
+{% endblock %}
